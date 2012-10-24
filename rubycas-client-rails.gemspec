@@ -1,18 +1,24 @@
+$:.push File.expand_path("../lib", __FILE__)
+
+# Maintain your gem's version:
+require "rubycas-client-rails/version"
+
+# Describe your gem and declare its dependencies:
 Gem::Specification.new do |s|
-  s.name = %q{rubycas-client-rails}
-  s.version = "0.1.1"
+  s.name        = "rubycas-client-rails"
+  s.date        = %q{2012-10-24}
+  s.version     = RubyCAS::Client::Rails::VERSION
+  s.authors     = ["Robert Mitwicki"]
+  s.email       = ["robert.mitwicki@opensoftware.pl"]
+  s.homepage    = "https://github.com/mitfik/rubycas-client-rails"
+  s.summary     = "Rails plugin for rubycas-client"
+  s.description = "Rails plugin for using the RubyCAS-Client as a controller filter."
+  s.rubyforge_project = %q{rubycas-client-rails}
 
-  s.authors = ["Matt Zukowski"]
-  s.date = %q{2011-08-13}
-  s.description = %q{Rails plugin for using the RubyCAS-Client as a controller filter.}
-  s.summary = %q{RubyCAS-Client Railtie for Rails 3.0.}
-  s.email = %q{matt dot zukowski at utoronto dot ca}
-  s.files = `git ls-files`.split("\n")
-  s.homepage = %q{http://rubycas-client.rubyforge.org}
-  s.rdoc_options = ["--main", "README.txt"]
-  s.require_paths = ["lib"]
-  s.rubyforge_project = %q{rubycas-client}
+  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.rdoc"]
+  s.test_files = Dir["test/**/*"]
 
-  s.add_dependency('rails', '>= 3.0.0')
-  s.add_dependency('rubycas-client', '~> 2.3.9.rc1')
+  s.add_dependency("rails", ">= 3.0.0")
+  s.add_dependency('rubycas-client', '~> 3.0.1')
+  s.add_development_dependency "sqlite3"
 end
