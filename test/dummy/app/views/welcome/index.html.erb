@@ -1,2 +1,9 @@
 <h1>Welcome#index</h1>
 <p>Find me in app/views/welcome/index.html.erb</p>
+
+<% if session[:cas_user_name].present? %>
+  <p> Welcome, <%= session[:cas_user_name] %> </p>
+  <p> <%= link_to "Logout ( #{session[:cas_user_name]} )", logout_path %> </p>
+<% else %>
+  <p> You are not logged in, please login <%= link_to "here", RubyCAS::Client::Rails::Filter.login_url(controller) %> </p>
+<% end %>

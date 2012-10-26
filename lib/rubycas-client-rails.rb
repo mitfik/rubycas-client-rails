@@ -1,4 +1,5 @@
 require 'rubycas-client-rails/engine'
+require 'rubycas-client-rails/tickets/storage'
 
 module RubyCAS
   class Client
@@ -15,6 +16,7 @@ module RubyCAS
         class << self
           def setup(config)
             @@config = config
+            # FIXME or remove
             # @@config[:logger] = ::Rails.logger unless @@config[:logger]
             @@client = RubyCAS::Client.new(@@config)
             @@log = @@client.log
@@ -24,7 +26,7 @@ module RubyCAS
             raise "Cannot use the CASClient filter because it has not yet been configured." if config.nil?
 
             if @@fake_user
-              controller.session[client.username_session_key] = @@fake_user
+              controller.session[client.config.username_session_key] = @@fake_user
               controller.session[:casfilteruser] = @@fake_user
               controller.session[client.extra_attributes_session_key] = @@fake_extra_attributes
               return true
@@ -54,7 +56,7 @@ module RubyCAS
               return true
             elsif last_st &&
                 !config[:authenticate_on_every_request] &&
-                controller.session[client.username_session_key]
+                controller.session[client.config.username_session_key]
               # Re-use the previous ticket if the user already has a local CAS session (i.e. if they were already
               # previously authenticated for this service). This is to prevent redirection to the CAS server on every
               # request.
@@ -62,21 +64,23 @@ module RubyCAS
               # This behaviour can be disabled (so that every request is routed through the CAS server) by setting
               # the :authenticate_on_every_request config option to true. However, this is not desirable since
               # it will almost certainly break POST request, AJAX calls, etc.
-              log.debug "Existing local CAS session detected for #{controller.session[client.username_session_key].inspect}. "+
+              log.debug "Existing local CAS session detected for #{controller.session[client.config.username_session_key].inspect}. "+
                 "Previous ticket #{last_st_service} will be re-used."
               #st = last_st
               return true
             end
 
             if st
-              client.validate_service_ticket(st) unless st.has_been_validated?
+              uri = client.prepare_uri_for(st)
+              response = client.request_cas_response(uri, RubyCAS::Client::ValidationResponse)
+              client.validate_service_ticket(response, st) unless st.has_been_validated?
               #vr = st.success
 
               if st.is_valid?
                 #if is_new_session
                   log.info("Ticket #{st.ticket.inspect} for service #{st.service.inspect} belonging to user #{st.user.inspect} is VALID.")
-                  controller.session[client.username_session_key] = st.user.dup
-                  controller.session[client.extra_attributes_session_key] = HashWithIndifferentAccess.new(st.extra_attributes) if st.extra_attributes
+                  controller.session[client.config.username_session_key] = st.user.dup
+                  controller.session[client.config.extra_attributes_session_key] = HashWithIndifferentAccess.new(st.extra_attributes) if st.extra_attributes
 
                   if st.extra_attributes
                     log.debug("Extra user attributes provided along with ticket #{st.ticket.inspect}: #{st.extra_attributes.inspect}.")
@@ -132,7 +136,7 @@ module RubyCAS
 
                 if use_gatewaying?
                   log.info "This CAS client is configured to use gatewaying, so we will permit the user to continue without authentication."
-                  controller.session[client.username_session_key] = nil
+                  controller.session[client.config.username_session_key] = nil
                   return true
                 else
                   log.warn "The CAS client is NOT configured to allow gatewaying, yet this request was gatewayed. Something is not right!"
@@ -294,15 +298,6 @@ module RubyCAS
 
               log.debug "Intercepted single-sign-out request for CAS session #{si.inspect}."
 
-              # Rails 2.3
-              ##required_sess_store = ActiveRecord::SessionStore
-              ##current_sess_store  = ActionController::Base.session_store
-
-              # Rails 2.2
-              ## required_sess_store = CGI::Session::ActiveRecordStore
-              ## current_sess_store  = ActionController::Base.session_options[:database_manager]
-
-              # Rails 3.0
               required_sess_store = ActiveRecord::SessionStore
               current_sess_store  = ::Rails.application.config.session_store
 
@@ -350,9 +345,9 @@ module RubyCAS
             log.debug("Request contains ticket #{ticket.inspect}.")
 
             if ticket =~ /^PT-/
-              CASClient::ProxyTicket.new(ticket, read_service_url(controller), controller.params.delete(:renew))
+              RubyCAS::Client::ProxyTicket.new(ticket, read_service_url(controller), controller.params.delete(:renew))
             else
-              CASClient::ServiceTicket.new(ticket, read_service_url(controller), controller.params.delete(:renew))
+              RubyCAS::Client::ServiceTicket.new(ticket, read_service_url(controller), controller.params.delete(:renew))
             end
           end
 
@@ -367,6 +362,7 @@ module RubyCAS
             end
 
             params = controller.params.dup
+            # FIX ME this is already done in read_ticket method remove that
             params.delete(:ticket)
             service_url = controller.url_for(params)
             log.debug("Guessed service url: #{service_url.inspect}")
@@ -379,7 +375,7 @@ module RubyCAS
           # Rails session id.
           # Returns the filename of the lookup file created.
           def store_service_session_lookup(st, sid)
-            st = st.ticket if st.kind_of? CASClient::ServiceTicket
+            st = st.ticket if st.kind_of? RubyCAS::Client::ServiceTicket
             f = File.new(filename_of_service_session_lookup(st), 'w')
             f.write(sid)
             f.close
@@ -391,7 +387,7 @@ module RubyCAS
           # cas_sess.<session ticket> file created in a prior call to
           # #store_service_session_lookup.
           def read_service_session_lookup(st)
-            st = st.ticket if st.kind_of? CASClient::ServiceTicket
+            st = st.ticket if st.kind_of? RubyCAS::Client::ServiceTicket
             ssl_filename = filename_of_service_session_lookup(st)
             return File.exists?(ssl_filename) && IO.read(ssl_filename)
           end
@@ -402,15 +398,15 @@ module RubyCAS
           #
           # See #store_service_session_lookup.
           def delete_service_session_lookup(st)
-            st = st.ticket if st.kind_of? CASClient::ServiceTicket
+            st = st.ticket if st.kind_of? RubyCAS::Client::ServiceTicket
             ssl_filename = filename_of_service_session_lookup(st)
             File.delete(ssl_filename) if File.exists?(ssl_filename)
           end
 
           # Returns the path and filename of the service session lookup file.
           def filename_of_service_session_lookup(st)
-            st = st.ticket if st.kind_of? CASClient::ServiceTicket
-            return "#{Rails.root}/tmp/sessions/cas_sess.#{st}"
+            st = st.ticket if st.kind_of? RubyCAS::Client::ServiceTicket
+            return "#{::Rails.root}/tmp/sessions/cas_sess.#{st}"
           end
         end
       end
