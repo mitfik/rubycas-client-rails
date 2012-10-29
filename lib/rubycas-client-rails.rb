@@ -182,7 +182,7 @@ module RubyCAS
           #
           # Use this from within a controller. Pass the controller, the
           # login-credentials and the path that you want the user
-          # resdirected to on success.
+          # redirected to on success.
           #
           # When writing a login-action you must check the return-value of
           # the response to see if it failed!
@@ -194,22 +194,21 @@ module RubyCAS
           # example:
           # def autologin
           #   resp = CASClient::Frameworks::Rails::Filter.login_to_service(self, credentials, dashboard_url)
-          #   if resp.is_faiulure?
+          #   if resp.is_failure?
           #     flash[:error] = 'Login failed'
           #     render :action => 'login'
           #   else
           #     return redirect_to(@resp.service_redirect_url)
           #   end
           # end
-          def login_to_service(controller, credentials, return_path)
-            resp = @@client.login_to_service(credentials, return_path)
-            if resp.is_failure?
+          def login_to_service(credentials, return_path)
+            response = @@client.login_to_service(credentials, return_path)
+            if response.is_failure?
               log.info("Validation failed for service #{return_path.inspect} reason: '#{resp.failure_message}'")
             else
-              log.info("Ticket #{resp.ticket.inspect} for service #{return_path.inspect} is VALID.")
+              log.info("Ticket #{response.ticket.inspect} for service #{return_path.inspect} is VALID.")
             end
-
-            resp
+            response
           end
 
           # Clears the given controller's local Rails session, does some local

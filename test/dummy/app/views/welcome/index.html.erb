@@ -1,9 +1,21 @@
 <h1>Welcome#index</h1>
 <p>Find me in app/views/welcome/index.html.erb</p>
 
+<p class="error_msg"> <%= flash[:error] %> </p>
+
 <% if session[:cas_user_name].present? %>
   <p> Welcome, <%= session[:cas_user_name] %> </p>
   <p> <%= link_to "Logout ( #{session[:cas_user_name]} )", logout_path %> </p>
 <% else %>
   <p> You are not logged in, please login <%= link_to "here", RubyCAS::Client::Rails::Filter.login_url(controller) %> </p>
+  <p> or use this form </p>
+  <%= form_tag autologin_path do %>
+    Login <%= text_field_tag :login %>
+    Password <%= password_field_tag :password %>
+    <%= submit_tag "Login in" %>
+  <% end %>
 <% end %>
+
+
+
+
