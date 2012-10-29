@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.description = "Rails plugin for using the RubyCAS-Client as a controller filter."
   s.rubyforge_project = %q{rubycas-client-rails}
 
-  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.rdoc"]
+  s.files = Dir["{app,config,db,lib}/**/*"] + ["MIT-LICENSE", "Rakefile", "README.markdown"]
   s.test_files = Dir["test/**/*"]
 
   s.add_dependency("rails", ">= 3.0.0")
