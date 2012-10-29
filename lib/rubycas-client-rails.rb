@@ -204,7 +204,7 @@ module RubyCAS
           def login_to_service(credentials, return_path)
             response = @@client.login_to_service(credentials, return_path)
             if response.is_failure?
-              log.info("Validation failed for service #{return_path.inspect} reason: '#{resp.failure_message}'")
+              log.info("Validation failed for service #{return_path.inspect} reason: '#{response.failure_message}'")
             else
               log.info("Ticket #{response.ticket.inspect} for service #{return_path.inspect} is VALID.")
             end
